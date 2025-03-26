@@ -7,9 +7,13 @@ config:
   code-block-style: false
   no-duplicate-header: false
   single-trailing-newline: false
+  no-multiple-blanks: false
+  blanks-around-lists: false
+  no-trailing-punctuation: false
 globs:
   - "**/*.md"
 ignores:
   - ".github/**"
   - "venv/**"
   - ".venv/**"
+  - ".tox/**"

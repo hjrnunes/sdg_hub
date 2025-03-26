@@ -40,7 +40,7 @@ Blocks can be chained together to form a **Pipeline**. Pipelines enable:
 
 ### SDG Workflow: Full Workflow Automation
 
-Pipelines are further orchestrated into **SDG Workflows**, enabling seamless end-to-end processing. When invoking `sdg.generate`, it triggers a pipeline/ or multiple pipelines that processes data through all the configured blocks. 
+Pipelines are further orchestrated into **SDG Workflows**, enabling seamless end-to-end processing. When invoking `sdg.generate`, it triggers a pipeline/ or multiple pipelines that processes data through all the configured blocks.
 
 ---
 
@@ -50,7 +50,7 @@ The YAML configuration file, known as the **Flow**, is central to defining data 
 
 #### Key Features of a Flow
 
-1. **Modular Design**: 
+1. **Modular Design**:
    - Flows are composed of blocks, which can be chained together into pipelines.
    - Each block performs a specific task, such as generating, filtering, or transforming data.
 
@@ -113,7 +113,7 @@ Here is an example of a Flow configuration:
 
 ---
 
-## Sample usecases: 
+## Sample use cases:
 
 ### Knowledge generation
 
@@ -121,7 +121,7 @@ TODO
 
 ### Data Annotation
 
-The following command annotates the dataset located at [datasets/emotion/seed.jsonl](datasets/emotion/seed.jsonl) using the flow defined in [src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml](src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml) 
+The following command annotates the dataset located at [datasets/emotion/seed.jsonl](datasets/emotion/seed.jsonl) using the flow defined in [src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml](src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml)
 
 #### Command to Run the Annotation Workflow
 
