@@ -5,10 +5,10 @@ import click
 import os
 
 # First Party
-from instructlab.sdg.flow import Flow
-from instructlab.sdg.logger_config import setup_logger
-from instructlab.sdg.pipeline import Pipeline
-from instructlab.sdg.sdg import SDG
+from sdg_hub.flow import Flow
+from sdg_hub.logger_config import setup_logger
+from sdg_hub.pipeline import Pipeline
+from sdg_hub.sdg import SDG
 
 
 logger = setup_logger(__name__)
@@ -22,15 +22,9 @@ logger = setup_logger(__name__)
     help="Path to the dataset.",
 )
 @click.option("--bs", type=int, default=8, show_default=True, help="Batch size.")
-@click.option(
-    "--num_workers", type=int, default=32, show_default=True, help="Number of workers."
-)
-@click.option(
-    "--save_path", type=click.Path(), required=True, help="Path to save the output."
-)
-@click.option(
-    "--endpoint", type=str, required=True, help="Endpoint for data processing."
-)
+@click.option("--num_workers", type=int, default=32, show_default=True, help="Number of workers.")
+@click.option("--save_path", type=click.Path(), required=True, help="Path to save the output.")
+@click.option("--endpoint", type=str, required=True, help="Endpoint for data processing.")
 @click.option(
     "--flow",
     type=click.Path(exists=True),
