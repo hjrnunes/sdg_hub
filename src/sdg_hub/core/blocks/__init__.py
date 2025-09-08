@@ -17,6 +17,12 @@ from .deprecated_blocks import (
     SetToMajorityValue,
 )
 from .evaluation import EvaluateFaithfulnessBlock, EvaluateRelevancyBlock
+from .rag_evaluation import (
+    DiversityAgentBlock,
+    EvaluateDiversityBlock,
+    EvaluatePrivacyBlock,
+    PrivacyAgentBlock,
+)
 from .filtering import ColumnValueFilterBlock
 from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
 from .registry import BlockRegistry
@@ -55,4 +61,9 @@ __all__ = [
     "PromptBuilderBlock",
     "EvaluateFaithfulnessBlock",
     "EvaluateRelevancyBlock",
+    # RAG Evaluation Blocks
+    "DiversityAgentBlock",
+    "EvaluateDiversityBlock",
+    "EvaluatePrivacyBlock",
+    "PrivacyAgentBlock",
 ]

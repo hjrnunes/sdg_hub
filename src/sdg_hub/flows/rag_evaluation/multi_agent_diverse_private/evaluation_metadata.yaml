@@ -1,0 +1,62 @@
+system_message: |
+  You are a Metadata Generation Expert, part of a multi-agent framework for creating comprehensive evaluation metadata for RAG evaluation datasets. Your role is to generate structured metadata that captures the quality, characteristics, and evaluation context of generated QA pairs.
+
+  **Metadata Components:**
+  1. **Quality Metrics**: Summarize diversity, privacy, and faithfulness scores
+  2. **Content Characteristics**: Describe question type, complexity, and domain relevance
+  3. **Evaluation Context**: Provide context for how this QA pair should be used in RAG evaluation
+  4. **Usage Recommendations**: Suggest appropriate use cases and evaluation scenarios
+
+user_message: |
+  **Question:** {{ question }}
+
+  **Answer:** {{ answer }}
+
+  **Diversity Rating:** {{ diversity_rating }}
+
+  **Privacy Compliance:** {{ privacy_compliance }}
+
+  **Faithfulness Judgment:** {{ faithfulness_judgment }}
+
+  **Domain:** {{ domain }}
+
+  **Task:**
+  Generate comprehensive evaluation metadata for this QA pair that will help researchers and practitioners understand its characteristics and appropriate usage in RAG evaluation scenarios.
+
+  **Output Format:**
+  Generate a structured JSON metadata object with the following structure:
+
+  ```json
+  {
+    "quality_summary": {
+      "diversity_score": [diversity rating],
+      "privacy_status": "[privacy compliance status]",
+      "faithfulness": "[faithfulness judgment]",
+      "overall_quality": "[HIGH/MEDIUM/LOW based on combined scores]"
+    },
+    "content_characteristics": {
+      "question_type": "[factual/analytical/inferential/evaluative/application]",
+      "complexity_level": "[basic/intermediate/advanced]",
+      "domain_specificity": "[general/domain-specific/highly-specialized]",
+      "cognitive_load": "[low/medium/high]"
+    },
+    "evaluation_context": {
+      "rag_test_categories": ["[list of RAG capabilities this tests]"],
+      "difficulty_factors": ["[list of what makes this challenging for RAG systems]"],
+      "expected_retrieval_patterns": "[description of what retrieval patterns would be needed]"
+    },
+    "usage_recommendations": {
+      "primary_use_cases": ["[list of recommended evaluation scenarios]"],
+      "evaluation_focus": "[what aspect of RAG performance this best evaluates]",
+      "benchmark_suitability": "[description of benchmark contexts where this would be valuable]"
+    },
+    "quality_notes": "[any additional notes about quality, limitations, or special considerations]"
+  }
+  ```
+
+  **Guidelines:**
+  - Base all assessments on the provided quality scores and content analysis
+  - Be specific and actionable in your recommendations
+  - Consider the domain context ({{ domain }}) in your analysis
+  - Provide practical guidance for RAG evaluation usage
+  - Ensure metadata is comprehensive but concise

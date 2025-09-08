@@ -1,0 +1,179 @@
+metadata:
+  id: diverse-private-rag-eval-001
+  name: "Multi-Agent Diverse and Private Synthetic QA Dataset Generation for RAG Evaluation"
+  description: "A comprehensive multi-agent framework for generating synthetic QA datasets that prioritize semantic diversity and privacy preservation for RAG system evaluation. Based on the research paper by Driouich et al. (2024)."
+  version: "1.0.0"
+  author: "SDG Hub Contributors"
+  
+  recommended_models:
+    default: "meta-llama/Llama-3.3-70B-Instruct"
+    compatible: ["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1", "anthropic/claude-3-sonnet-20240229"]
+    experimental: ["openai/gpt-4"]
+  
+  tags:
+    - "rag-evaluation"
+    - "multi-agent"
+    - "privacy-preserving"
+    - "diversity-optimization"
+    - "synthetic-qa"
+    - "evaluation-dataset"
+  
+  license: "Apache-2.0"
+  min_sdg_hub_version: "0.2.0"
+  
+  dataset_requirements:
+    required_columns:
+      - "document"
+      - "domain"
+    optional_columns:
+      - "document_id"
+      - "metadata"
+    description: "Input dataset should contain documents from various domains for generating diverse and privacy-aware QA pairs. Documents should be substantial enough for meaningful question generation and privacy analysis."
+
+parameters:
+  # Diversity Agent Parameters
+  diversity_clusters:
+    type: "integer"
+    default: 10
+    description: "Number of clusters for semantic diversity optimization"
+  
+  diversity_threshold:
+    type: "float"
+    default: 0.7
+    description: "Minimum diversity score threshold for question acceptance"
+  
+  # Privacy Agent Parameters
+  privacy_domains:
+    type: "list"
+    default: ["medical", "financial", "personal", "legal"]
+    description: "List of privacy-sensitive domains to detect and mask"
+  
+  masking_strategy:
+    type: "string"
+    default: "entity_replacement"
+    description: "Strategy for masking sensitive information (entity_replacement, redaction, synthetic_replacement)"
+  
+  # QA Curation Parameters
+  qa_pairs_per_document:
+    type: "integer"
+    default: 3
+    description: "Number of QA pairs to generate per document"
+  
+  quality_threshold:
+    type: "float"
+    default: 0.8
+    description: "Minimum quality score for QA pair acceptance"
+
+blocks:
+  # Step 1: Document Preprocessing and Analysis
+  - block_type: DuplicateColumnsBlock
+    block_config:
+      block_name: backup_original_document
+      input_cols: {document: original_document}
+
+  # Step 2: Diversity Agent - Semantic Clustering and Analysis
+  - block_type: DiversityAgentBlock
+    block_config:
+      block_name: diversity_analysis
+      input_cols: [document, domain]
+      output_cols: [diversity_cluster, diversity_score, semantic_features]
+      num_clusters: "{{ diversity_clusters }}"
+      diversity_threshold: "{{ diversity_threshold }}"
+      embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+      clustering_method: "kmeans"
+
+  # Step 3: Privacy Agent - Sensitive Information Detection and Masking
+  - block_type: PrivacyAgentBlock
+    block_config:
+      block_name: privacy_detection_masking
+      input_cols: [document, domain]
+      output_cols: [privacy_masked_document, privacy_entities, privacy_score]
+      privacy_domains: "{{ privacy_domains }}"
+      masking_strategy: "{{ masking_strategy }}"
+      entity_types: ["PERSON", "ORG", "GPE", "DATE", "MONEY", "PHONE", "EMAIL", "SSN", "CREDIT_CARD"]
+
+  # Step 4: QA Curation Agent - Question Generation with Privacy and Diversity Constraints
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: qa_curation_prompt
+      input_cols: [privacy_masked_document, domain, diversity_cluster, semantic_features]
+      output_cols: qa_generation_prompt
+      prompt_config_path: qa_curation_agent.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: generate_diverse_private_qa
+      input_cols: qa_generation_prompt
+      output_cols: raw_qa_pairs
+      temperature: 0.7
+      max_tokens: 2048
+      async_mode: true
+      n: "{{ qa_pairs_per_document }}"
+
+  # Step 5: Parse Generated QA Pairs
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_qa_pairs
+      input_cols: raw_qa_pairs
+      output_cols: [question, answer]
+      parsing_pattern: "\\[QUESTION\\]\\s*(.*?)\\s*\\[ANSWER\\]\\s*(.*?)\\s*(?=\\[QUESTION\\]|$)"
+      parser_cleanup_tags: ["[END]", "[STOP]"]
+
+  # Step 6: Quality Evaluation - Diversity Assessment
+  - block_type: EvaluateDiversityBlock
+    block_config:
+      block_name: eval_question_diversity
+      input_cols: [question, diversity_cluster, semantic_features]
+      output_cols: [diversity_explanation, diversity_rating]
+      prompt_config_path: evaluate_diversity.yaml
+      filter_value: "{{ diversity_threshold }}"
+      operation: ge
+      convert_dtype: float
+
+  # Step 7: Quality Evaluation - Privacy Assessment
+  - block_type: EvaluatePrivacyBlock
+    block_config:
+      block_name: eval_privacy_preservation
+      input_cols: [question, answer, privacy_entities]
+      output_cols: [privacy_explanation, privacy_compliance]
+      prompt_config_path: evaluate_privacy.yaml
+      filter_value: "COMPLIANT"
+      operation: eq
+
+  # Step 8: Quality Evaluation - Answer Faithfulness
+  - block_type: EvaluateFaithfulnessBlock
+    block_config:
+      block_name: eval_answer_faithfulness
+      input_cols: [privacy_masked_document, answer]
+      output_cols: [faithfulness_explanation, faithfulness_judgment]
+      prompt_config_path: evaluate_faithfulness.yaml
+      filter_value: "YES"
+      operation: eq
+      async_mode: true
+
+  # Step 9: Final Quality Filter
+  - block_type: ColumnValueFilterBlock
+    block_config:
+      block_name: final_quality_filter
+      input_cols: [diversity_rating, privacy_compliance, faithfulness_judgment]
+      filter_column: diversity_rating
+      filter_value: "{{ quality_threshold }}"
+      operation: ge
+      convert_dtype: float
+
+  # Step 10: Generate Evaluation Metadata
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: evaluation_metadata_prompt
+      input_cols: [question, answer, diversity_rating, privacy_compliance, faithfulness_judgment, domain]
+      output_cols: metadata_prompt
+      prompt_config_path: evaluation_metadata.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: generate_evaluation_metadata
+      input_cols: metadata_prompt
+      output_cols: evaluation_metadata
+      temperature: 0.3
+      max_tokens: 512
+      async_mode: true
