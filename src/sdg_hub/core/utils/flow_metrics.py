@@ -92,7 +92,7 @@ def display_metrics_summary(
     # Create the metrics table
     table = Table(
         show_header=True,
-        header_style="bold bright_white",
+        header_style="bold",
         title="Flow Execution Summary",
     )
     table.add_column("Block Name", style="bright_cyan", width=20)
@@ -165,17 +165,15 @@ def display_metrics_summary(
     failed_blocks = len(block_metrics) - successful_blocks
     if final_dataset is None:
         # Flow failed completely
-        title = (
-            f"[bold bright_white]{flow_name}[/bold bright_white] - [red]Failed[/red]"
-        )
+        title = f"[bold]{flow_name}[/bold] - [red]Failed[/red]"
         border_style = "bright_red"
     elif failed_blocks == 0:
         # All blocks succeeded
-        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [green]Complete[/green]"
+        title = f"[bold]{flow_name}[/bold] - [green]Complete[/green]"
         border_style = "bright_green"
     else:
         # Some blocks failed but flow completed
-        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [yellow]Partial[/yellow]"
+        title = f"[bold]{flow_name}[/bold] - [yellow]Partial[/yellow]"
         border_style = "bright_yellow"
 
     console.print(
