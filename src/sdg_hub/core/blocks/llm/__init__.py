@@ -14,6 +14,7 @@ from .llm_chat_block import LLMChatBlock
 from .llm_chat_with_parsing_retry_block import LLMChatWithParsingRetryBlock
 from .prompt_builder_block import PromptBuilderBlock
 from .text_parser_block import TextParserBlock
+from .llm_parser_block import LLMParserBlock
 
 __all__ = [
     "LLMConfig",
@@ -22,6 +23,7 @@ __all__ = [
     "ErrorCategory",
     "LLMChatBlock",
     "LLMChatWithParsingRetryBlock",
+    "LLMParserBlock",
     "PromptBuilderBlock",
     "TextParserBlock",
 ]
