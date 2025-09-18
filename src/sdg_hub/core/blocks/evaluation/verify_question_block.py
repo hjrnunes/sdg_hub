@@ -107,12 +107,14 @@ class VerifyQuestionBlock(BaseBlock):
     # Store parameters for internal blocks
     prompt_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
     llm_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    llm_parser_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
     parser_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
     filter_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
     # --- Internal blocks (composition) ---
     prompt_builder: PromptBuilderBlock = Field(None, exclude=True)  # type: ignore
     llm_chat: LLMChatBlock = Field(None, exclude=True)  # type: ignore
+    llm_parser: LLMParserBlock = Field(None, exclude=True)  # type: ignore
     text_parser: TextParserBlock = Field(None, exclude=True)  # type: ignore
     filter_block: ColumnValueFilterBlock = Field(None, exclude=True)  # type: ignore
 
@@ -181,9 +183,10 @@ class VerifyQuestionBlock(BaseBlock):
         # Route parameters to appropriate blocks
         prompt_params = self._extract_params(kwargs, PromptBuilderBlock)
         llm_params = self._extract_params(kwargs, LLMChatBlock)
+        llm_parser_params = self._extract_params(kwargs, LLMParserBlock)
         parser_params = self._extract_params(kwargs, TextParserBlock)
         filter_params = self._extract_params(kwargs, ColumnValueFilterBlock)
-
+        
         self.prompt_builder = PromptBuilderBlock(
             block_name=f"{self.block_name}_prompt_builder",
             input_cols=["question"],
@@ -209,10 +212,17 @@ class VerifyQuestionBlock(BaseBlock):
 
         self.llm_chat = LLMChatBlock(**llm_config)
 
+        # Create LLM parser block
+        self.llm_parser = LLMParserBlock(
+            block_name=f"{self.block_name}_llm_parser",
+            input_cols=["raw_verify_question"],
+            **llm_parser_params,
+        )
+
         # Create text parser
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=["raw_verify_question"],
+            input_cols=[self.block_name + "_llm_parser_content"],
             output_cols=["verification_explanation", "verification_rating"],
             **parser_params,
         )
