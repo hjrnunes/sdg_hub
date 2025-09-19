@@ -24,6 +24,7 @@ from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..filtering.column_value_filter import ColumnValueFilterBlock
 from ..llm.llm_chat_block import LLMChatBlock
+from ..llm.llm_parser_block import LLMParserBlock
 from ..llm.prompt_builder_block import PromptBuilderBlock
 from ..llm.text_parser_block import TextParserBlock
 from ..registry import BlockRegistry
@@ -106,6 +107,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
     # --- Internal blocks (composition) ---
     prompt_builder: PromptBuilderBlock = Field(None, exclude=True)  # type: ignore
     llm_chat: LLMChatBlock = Field(None, exclude=True)  # type: ignore
+    llm_parser: LLMParserBlock = Field(None, exclude=True)  # type: ignore
     text_parser: TextParserBlock = Field(None, exclude=True)  # type: ignore
     filter_block: ColumnValueFilterBlock = Field(None, exclude=True)  # type: ignore
 
@@ -174,6 +176,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         # Route parameters to appropriate blocks
         prompt_params = self._extract_params(kwargs, PromptBuilderBlock)
         llm_params = self._extract_params(kwargs, LLMChatBlock)
+        llm_parser_params = self._extract_params(kwargs, LLMParserBlock)
         parser_params = self._extract_params(kwargs, TextParserBlock)
         filter_params = self._extract_params(kwargs, ColumnValueFilterBlock)
 
@@ -202,10 +205,17 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
         self.llm_chat = LLMChatBlock(**llm_config)
 
+        # Create LLM parser block
+        self.llm_parser = LLMParserBlock(
+            block_name=f"{self.block_name}_llm_parser",
+            input_cols=["raw_eval_faithfulness"],
+            **llm_parser_params,
+        )
+
         # Create text parser
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=["raw_eval_faithfulness"],
+            input_cols=[ self.llm_parser.field_prefix if self.llm_parser.field_prefix!="" else self.llm_parser.block_name + "_content"],
             output_cols=["faithfulness_explanation", "faithfulness_judgment"],
             **parser_params,
         )
@@ -248,6 +258,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             # Execute 4-block pipeline with validation delegation
             result = self.prompt_builder(samples, **kwargs)
             result = self.llm_chat(result, **kwargs)
+            result = self.llm_parser(result, **kwargs)
             result = self.text_parser(result, **kwargs)
             result = self.filter_block(result, **kwargs)
 
@@ -271,6 +282,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
             ("llm_chat", LLMChatBlock),
+            ("llm_parser", LLMParserBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
         ]:
@@ -290,6 +302,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
             ("llm_chat", LLMChatBlock),
+            ("llm_parser", LLMParserBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
         ]:
@@ -306,6 +319,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         return {
             "prompt_builder": self.prompt_builder.get_info(),
             "llm_chat": self.llm_chat.get_info(),
+            "llm_parser": self.llm_parser.get_info(),
             "text_parser": self.text_parser.get_info(),
             "filter": self.filter_block.get_info(),
         }

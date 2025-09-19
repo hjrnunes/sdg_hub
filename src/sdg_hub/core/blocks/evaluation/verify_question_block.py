@@ -222,7 +222,7 @@ class VerifyQuestionBlock(BaseBlock):
         # Create text parser
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=[self.block_name + "_llm_parser_content"],
+            input_cols=[ self.llm_parser.field_prefix if self.llm_parser.field_prefix!="" else self.llm_parser.block_name + "_content"],
             output_cols=["verification_explanation", "verification_rating"],
             **parser_params,
         )
@@ -262,9 +262,10 @@ class VerifyQuestionBlock(BaseBlock):
         )
 
         try:
-            # Execute 4-block pipeline with validation delegation
+            # Execute 5-block pipeline with validation delegation
             result = self.prompt_builder(samples, **kwargs)
             result = self.llm_chat(result, **kwargs)
+            result = self.llm_parser(result, **kwargs)
             result = self.text_parser(result, **kwargs)
             result = self.filter_block(result, **kwargs)
 
@@ -288,6 +289,7 @@ class VerifyQuestionBlock(BaseBlock):
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
             ("llm_chat", LLMChatBlock),
+            ("llm_parser", LLMParserBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
         ]:
@@ -307,6 +309,7 @@ class VerifyQuestionBlock(BaseBlock):
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
             ("llm_chat", LLMChatBlock),
+            ("llm_parser", LLMParserBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
         ]:
@@ -323,6 +326,7 @@ class VerifyQuestionBlock(BaseBlock):
         return {
             "prompt_builder": self.prompt_builder.get_info(),
             "llm_chat": self.llm_chat.get_info(),
+            "llm_parser": self.llm_parser.get_info(),
             "text_parser": self.text_parser.get_info(),
             "filter": self.filter_block.get_info(),
         }
