@@ -186,7 +186,7 @@ class VerifyQuestionBlock(BaseBlock):
         llm_parser_params = self._extract_params(kwargs, LLMParserBlock)
         parser_params = self._extract_params(kwargs, TextParserBlock)
         filter_params = self._extract_params(kwargs, ColumnValueFilterBlock)
-        
+
         self.prompt_builder = PromptBuilderBlock(
             block_name=f"{self.block_name}_prompt_builder",
             input_cols=["question"],
@@ -222,7 +222,11 @@ class VerifyQuestionBlock(BaseBlock):
         # Create text parser
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=[ self.llm_parser.field_prefix if self.llm_parser.field_prefix!="" else self.llm_parser.block_name + "_content"],
+            input_cols=[
+                self.llm_parser.field_prefix
+                if self.llm_parser.field_prefix != ""
+                else self.llm_parser.block_name + "_content"
+            ],
             output_cols=["verification_explanation", "verification_rating"],
             **parser_params,
         )
