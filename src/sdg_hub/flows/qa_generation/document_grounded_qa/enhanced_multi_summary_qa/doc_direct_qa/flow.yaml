@@ -1,6 +1,6 @@
 metadata:
-  name: Detailed Summary Knowledge Tuning Dataset Generation Flow
-  description: Generates high level summaries of the document focusing on overarching themes, main arguments, and core principles. This is then converted into Question-Answer pairs.
+  name: Document Based Knowledge Tuning Dataset Generation Flow
+  description: Directly generates QA pairs from the raw document.
   version: 2.0.0
   author: SDG Hub Contributors
   recommended_models:
@@ -30,52 +30,18 @@ metadata:
     description: 'Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended). The flow generates three types
       of summaries: detailed (n=20), extractive (n=10), and key facts (n=50), each producing corresponding QA pairs designed to help LLMs internalize document knowledge for knowledge tuning.'
   output_columns:
-  - summary
   - question
   - response
   - raw_document
   - faithfulness_explanation
   - faithfulness_judgment
-  id: mild-thunder-748
+  id: stellar-peak-605
 blocks:
 - block_type: DuplicateColumnsBlock
   block_config:
     block_name: duplicate_document_col
     input_cols:
       document: base_document
-- block_type: PromptBuilderBlock
-  block_config:
-    block_name: detailed_summary_prompt
-    input_cols:
-    - document
-    - document_outline
-    output_cols: summary_prompt
-    prompt_config_path: detailed_summary.yaml
-    format_as_messages: true
-- block_type: LLMChatBlock
-  block_config:
-    block_name: gen_detailed_summary
-    input_cols: summary_prompt
-    output_cols: raw_summary
-    max_tokens: 4096
-    temperature: 0.7
-    n: 50
-    async_mode: true
-- block_type: TextParserBlock
-  block_config:
-    block_name: parse_detailed_summary
-    input_cols: raw_summary
-    output_cols: summary
-    start_tags:
-    - ''
-    end_tags:
-    - ''
-- block_type: RenameColumnsBlock
-  block_config:
-    block_name: rename_to_document_column
-    input_cols:
-      document: raw_document
-      summary: document
 - block_type: PromptBuilderBlock
   block_config:
     block_name: question_generation_prompt
@@ -96,7 +62,7 @@ blocks:
     input_cols: question_generation_prompt
     output_cols: question_list
     max_tokens: 256
-    temperature: 0.7
+    temperature: 1.0
     n: 1
     async_mode: true
 - block_type: TextParserBlock
@@ -124,7 +90,7 @@ blocks:
     input_cols: answer_generation_prompt
     output_cols: response_dict
     max_tokens: 4096
-    temperature: 0.7
+    temperature: 1.0
     n: 1
     async_mode: true
 - block_type: TextParserBlock
