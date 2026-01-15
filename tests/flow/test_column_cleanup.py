@@ -111,9 +111,7 @@ class TestColumnDependencyTracker:
 
     def test_get_droppable_columns_preserves_final(self):
         """Test that final output columns are never dropped."""
-        block1 = TextConcatBlock(
-            block_name="b1", input_cols=["a"], output_cols="final"
-        )
+        block1 = TextConcatBlock(block_name="b1", input_cols=["a"], output_cols="final")
 
         tracker = ColumnDependencyTracker(
             blocks=[block1],
@@ -127,9 +125,7 @@ class TestColumnDependencyTracker:
 
     def test_get_droppable_columns_preserves_original(self):
         """Test that original columns are never dropped."""
-        block1 = TextConcatBlock(
-            block_name="b1", input_cols=["a"], output_cols="temp"
-        )
+        block1 = TextConcatBlock(block_name="b1", input_cols=["a"], output_cols="temp")
 
         tracker = ColumnDependencyTracker(
             blocks=[block1],
@@ -169,9 +165,7 @@ class TestColumnDependencyTracker:
         block1 = TextConcatBlock(
             block_name="b1", input_cols=["a"], output_cols="unused"
         )
-        block2 = TextConcatBlock(
-            block_name="b2", input_cols=["a"], output_cols="final"
-        )
+        block2 = TextConcatBlock(block_name="b2", input_cols=["a"], output_cols="final")
 
         tracker = ColumnDependencyTracker(
             blocks=[block1, block2],
