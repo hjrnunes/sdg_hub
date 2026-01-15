@@ -863,11 +863,12 @@ class Flow(BaseModel):
                 f"Missing: {sorted(missing_minimal)}"
             )
 
-        # Validate: user_cols ⊆ all_possible (warn if unknown)
+        # Validate: user_cols ⊆ all_possible (error if unknown)
         unknown = user_set - all_possible
         if unknown:
-            logger.warning(
-                f"columns_to_keep contains columns not produced by flow: {sorted(unknown)}"
+            raise ValueError(
+                f"columns_to_keep contains columns not produced by flow: {sorted(unknown)}. "
+                f"Available columns: {sorted(all_possible)}"
             )
 
         return user_set

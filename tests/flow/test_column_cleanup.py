@@ -426,8 +426,8 @@ class TestFlowColumnsToKeep:
         with pytest.raises(ValueError, match="must include all minimal_output_columns"):
             flow.generate(dataset, columns_to_keep=["col1"])  # missing col2
 
-    def test_columns_to_keep_with_unknown_columns_warns(self, caplog):
-        """Test warning when columns_to_keep has unknown columns."""
+    def test_columns_to_keep_with_unknown_columns_raises(self):
+        """Test error when columns_to_keep has unknown columns."""
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
@@ -443,10 +443,8 @@ class TestFlowColumnsToKeep:
         )
 
         dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
-        flow.generate(dataset, columns_to_keep=["output", "nonexistent"])
-
-        assert "columns_to_keep contains columns not produced by flow" in caplog.text
-        assert "nonexistent" in caplog.text
+        with pytest.raises(ValueError, match="columns not produced by flow"):
+            flow.generate(dataset, columns_to_keep=["output", "nonexistent"])
 
 
 class TestFlowMetadataBackwardsCompat:
