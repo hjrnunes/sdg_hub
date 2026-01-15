@@ -115,6 +115,48 @@ class Flow(BaseModel):
 
         return self
 
+    @property
+    def all_output_columns(self) -> set[str]:
+        """Get all columns that this flow can produce.
+
+        Returns
+        -------
+        set[str]
+            Set of all output column names from all blocks in the flow.
+        """
+        output_cols: set[str] = set()
+        for block in self.blocks:
+            block_outputs = self._extract_output_columns(block.output_cols)
+            output_cols.update(block_outputs)
+        return output_cols
+
+    @staticmethod
+    def _extract_output_columns(
+        output_cols: Union[str, list[str], dict[str, Any], None],
+    ) -> list[str]:
+        """Extract output column names from a block's output_cols specification.
+
+        Parameters
+        ----------
+        output_cols : Union[str, list[str], dict[str, Any], None]
+            Block's output_cols specification
+
+        Returns
+        -------
+        list[str]
+            List of output column names
+        """
+        if output_cols is None:
+            return []
+        if isinstance(output_cols, str):
+            return [output_cols]
+        if isinstance(output_cols, list):
+            return output_cols
+        if isinstance(output_cols, dict):
+            # For dict outputs, values are the output column names
+            return list(output_cols.values())
+        return []
+
     @classmethod
     def from_yaml(cls, yaml_path: str) -> "Flow":
         """Load flow from YAML configuration file.
@@ -346,6 +388,7 @@ class Flow(BaseModel):
         save_freq: Optional[int] = None,
         log_dir: Optional[str] = None,
         max_concurrency: Optional[int] = None,
+        columns_to_keep: Optional[list[str]] = None,
     ) -> Union[pd.DataFrame, datasets.Dataset]:
         """Execute the flow blocks in sequence to generate data.
 
@@ -375,6 +418,10 @@ class Flow(BaseModel):
         max_concurrency : Optional[int], optional
             Maximum number of concurrent requests across all blocks.
             Controls async request concurrency to prevent overwhelming servers.
+        columns_to_keep : Optional[list[str]], optional
+            Columns to keep in the final output. Must include all minimal_output_columns
+            (if specified in metadata). If None, uses minimal_output_columns from metadata
+            or keeps all columns if not specified.
 
         Returns
         -------
@@ -388,12 +435,19 @@ class Flow(BaseModel):
             If input dataset is empty or any block produces an empty dataset.
         FlowValidationError
             If flow validation fails or if model configuration is required but not set.
+        ValueError
+            If columns_to_keep doesn't include all minimal_output_columns.
         """
         # Convert to DataFrame if needed (backwards compatibility)
         dataset, was_dataset = self._convert_to_dataframe(dataset)
 
         # Capture original columns for preservation during cleanup
         original_columns = set(dataset.columns)
+
+        # Resolve and validate columns_to_keep
+        effective_columns_to_keep = self._resolve_columns_to_keep(
+            columns_to_keep, original_columns
+        )
 
         # Validate save_freq parameter early to prevent range() errors
         if save_freq is not None and save_freq <= 0:
@@ -506,10 +560,10 @@ class Flow(BaseModel):
         run_start = time.perf_counter()
 
         # Initialize column tracker for memory optimization
-        if self.metadata.optimize_memory and self.metadata.final_output_columns:
+        if self.metadata.optimize_memory and effective_columns_to_keep:
             self._column_tracker = ColumnDependencyTracker(
                 self.blocks,
-                set(self.metadata.final_output_columns),
+                effective_columns_to_keep,
                 original_columns,
             )
             flow_logger.info("Memory optimization enabled - will drop unused columns")
@@ -582,10 +636,13 @@ class Flow(BaseModel):
 
             execution_successful = True
 
-            # Phase 1: Drop intermediate columns if final_output_columns specified
-            if self.metadata.final_output_columns and final_dataset is not None:
+            # Phase 1: Drop intermediate columns if columns to keep are specified
+            if effective_columns_to_keep and final_dataset is not None:
                 final_dataset = self._cleanup_final_columns(
-                    final_dataset, original_columns, flow_logger
+                    final_dataset,
+                    effective_columns_to_keep,
+                    original_columns,
+                    flow_logger,
                 )
 
         finally:
@@ -765,18 +822,71 @@ class Flow(BaseModel):
             return {}
         return runtime_params.get(block.block_name, {})
 
+    def _resolve_columns_to_keep(
+        self,
+        user_cols: Optional[list[str]],
+        original_columns: set[str],
+    ) -> Optional[set[str]]:
+        """Resolve and validate columns_to_keep.
+
+        Parameters
+        ----------
+        user_cols : Optional[list[str]]
+            User-specified columns to keep
+        original_columns : set[str]
+            Original input columns
+
+        Returns
+        -------
+        Optional[set[str]]
+            Effective columns to keep, or None if no cleanup needed
+
+        Raises
+        ------
+        ValueError
+            If user_cols doesn't include all minimal_output_columns
+        """
+        minimal = set(self.metadata.minimal_output_columns or [])
+        all_possible = self.all_output_columns | original_columns
+
+        if user_cols is None:
+            # No user override - use minimal if set, else keep all
+            return minimal if minimal else None
+
+        user_set = set(user_cols)
+
+        # Validate: minimal ⊆ user_cols
+        missing_minimal = minimal - user_set
+        if missing_minimal:
+            raise ValueError(
+                f"columns_to_keep must include all minimal_output_columns. "
+                f"Missing: {sorted(missing_minimal)}"
+            )
+
+        # Validate: user_cols ⊆ all_possible (warn if unknown)
+        unknown = user_set - all_possible
+        if unknown:
+            logger.warning(
+                f"columns_to_keep contains columns not produced by flow: {sorted(unknown)}"
+            )
+
+        return user_set
+
     def _cleanup_final_columns(
         self,
         dataset: pd.DataFrame,
+        columns_to_keep: set[str],
         original_columns: set[str],
         flow_logger,
     ) -> pd.DataFrame:
-        """Drop all columns except final_output_columns + original input columns.
+        """Drop all columns except columns_to_keep + original input columns.
 
         Parameters
         ----------
         dataset : pd.DataFrame
             Dataset to clean up
+        columns_to_keep : set[str]
+            Columns that must be preserved in output
         original_columns : set[str]
             Original input columns (auto-preserved)
         flow_logger
@@ -785,18 +895,18 @@ class Flow(BaseModel):
         Returns
         -------
         pd.DataFrame
-            Dataset with only final output columns + original columns retained
+            Dataset with only columns_to_keep + original columns retained
         """
         current_cols = set(dataset.columns)
-        # Keep: final_output_columns + original input columns (auto-preserved)
-        cols_to_keep = set(self.metadata.final_output_columns) | original_columns
+        # Keep: columns_to_keep + original input columns (auto-preserved)
+        cols_to_keep_final = columns_to_keep | original_columns
 
-        cols_to_drop = current_cols - cols_to_keep
-        missing_cols = set(self.metadata.final_output_columns) - current_cols
+        cols_to_drop = current_cols - cols_to_keep_final
+        missing_cols = columns_to_keep - current_cols
 
         if missing_cols:
             flow_logger.warning(
-                f"final_output_columns not found in dataset: {sorted(missing_cols)}"
+                f"columns_to_keep not found in dataset: {sorted(missing_cols)}"
             )
 
         if cols_to_drop:

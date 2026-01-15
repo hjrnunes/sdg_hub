@@ -18,7 +18,7 @@ class ColumnDependencyTracker:
     def __init__(
         self,
         blocks: list[BaseBlock],
-        final_output_columns: set[str],
+        columns_to_keep: set[str],
         original_columns: set[str],
     ):
         """Initialize dependency tracker.
@@ -27,13 +27,13 @@ class ColumnDependencyTracker:
         ----------
         blocks : list[BaseBlock]
             Ordered list of blocks in the flow
-        final_output_columns : set[str]
+        columns_to_keep : set[str]
             Columns that must be preserved in final output
         original_columns : set[str]
             Original input columns (auto-preserved)
         """
         self.blocks = blocks
-        self.final_output_columns = final_output_columns
+        self.columns_to_keep = columns_to_keep
         self.original_columns = original_columns
         self.last_consumer: dict[str, int] = {}  # col -> last block index that reads it
         self._build_dependency_graph()
@@ -88,8 +88,8 @@ class ColumnDependencyTracker:
         list[str]
             Columns that can be safely dropped
         """
-        # Columns to preserve: final outputs + original input columns
-        preserved = self.final_output_columns | self.original_columns
+        # Columns to preserve: columns_to_keep + original input columns
+        preserved = self.columns_to_keep | self.original_columns
         droppable = []
         for col in current_columns:
             if col in preserved:

@@ -249,14 +249,23 @@ class FlowMetadata(BaseModel):
     dataset_requirements: Optional[DatasetRequirements] = Field(
         default=None, description="Requirements for input datasets"
     )
-    final_output_columns: Optional[list[str]] = Field(
+    minimal_output_columns: Optional[list[str]] = Field(
         default=None,
-        description="Columns to keep in final output. All others are dropped.",
+        description="Minimum columns required in final output. Flow users can request additional columns via columns_to_keep.",
     )
     optimize_memory: bool = Field(
         default=False,
         description="Drop columns early during execution when no longer needed",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_output_columns(cls, data: dict) -> dict:
+        """Migrate old output_columns to minimal_output_columns for backwards compat."""
+        if isinstance(data, dict):
+            if "output_columns" in data and "minimal_output_columns" not in data:
+                data["minimal_output_columns"] = data.pop("output_columns")
+        return data
 
     @field_validator("id")
     @classmethod
@@ -289,17 +298,17 @@ class FlowMetadata(BaseModel):
         """Validate and clean tags."""
         return [tag.strip().lower() for tag in v if tag.strip()]
 
-    @field_validator("final_output_columns")
+    @field_validator("minimal_output_columns")
     @classmethod
-    def validate_final_output_columns(
+    def validate_minimal_output_columns(
         cls, v: Optional[list[str]]
     ) -> Optional[list[str]]:
-        """Validate and clean final output columns."""
+        """Validate and clean minimal output columns."""
         if v is None:
             return v
         cleaned = [col.strip() for col in v if isinstance(col, str) and col.strip()]
         if len(cleaned) != len(set(cleaned)):
-            raise ValueError("final_output_columns contains duplicate column names")
+            raise ValueError("minimal_output_columns contains duplicate column names")
         return cleaned
 
     @field_validator("recommended_models")
@@ -326,9 +335,9 @@ class FlowMetadata(BaseModel):
     @model_validator(mode="after")
     def validate_memory_optimization(self) -> "FlowMetadata":
         """Validate that optimize_memory has required configuration."""
-        if self.optimize_memory and not self.final_output_columns:
+        if self.optimize_memory and not self.minimal_output_columns:
             logging.getLogger(__name__).warning(
-                "optimize_memory=True requires final_output_columns to be set. "
+                "optimize_memory=True requires minimal_output_columns to be set. "
                 "Early column dropping will be skipped."
             )
         return self
