@@ -42,6 +42,7 @@ from ..utils.path_resolution import resolve_path
 from ..utils.time_estimator import estimate_execution_time
 from ..utils.yaml_utils import save_flow_yaml
 from .checkpointer import FlowCheckpointer
+from .column_tracker import ColumnDependencyTracker
 from .metadata import DatasetRequirements, FlowMetadata
 from .validation import FlowValidator
 
@@ -78,6 +79,9 @@ class Flow(BaseModel):
     _block_metrics: list[dict[str, Any]] = PrivateAttr(
         default_factory=list
     )  # Track block execution metrics
+    _column_tracker: Optional[ColumnDependencyTracker] = PrivateAttr(
+        default=None
+    )  # Track column dependencies for memory optimization
 
     @field_validator("blocks")
     @classmethod
@@ -388,6 +392,9 @@ class Flow(BaseModel):
         # Convert to DataFrame if needed (backwards compatibility)
         dataset, was_dataset = self._convert_to_dataframe(dataset)
 
+        # Capture original columns for preservation during cleanup
+        original_columns = set(dataset.columns)
+
         # Validate save_freq parameter early to prevent range() errors
         if save_freq is not None and save_freq <= 0:
             raise FlowValidationError(
@@ -498,6 +505,17 @@ class Flow(BaseModel):
         self._block_metrics = []
         run_start = time.perf_counter()
 
+        # Initialize column tracker for memory optimization
+        if self.metadata.optimize_memory and self.metadata.final_output_columns:
+            self._column_tracker = ColumnDependencyTracker(
+                self.blocks,
+                set(self.metadata.final_output_columns),
+                original_columns,
+            )
+            flow_logger.info("Memory optimization enabled - will drop unused columns")
+        else:
+            self._column_tracker = None
+
         # Execute flow with metrics capture, ensuring metrics are always displayed/saved
         final_dataset = None
         execution_successful = False
@@ -563,6 +581,12 @@ class Flow(BaseModel):
                         )
 
             execution_successful = True
+
+            # Phase 1: Drop intermediate columns if final_output_columns specified
+            if self.metadata.final_output_columns and final_dataset is not None:
+                final_dataset = self._cleanup_final_columns(
+                    final_dataset, original_columns, flow_logger
+                )
 
         finally:
             # Always display metrics and save JSON, even if execution failed
@@ -695,6 +719,18 @@ class Flow(BaseModel):
                     f"{len(current_dataset.columns)} columns"
                 )
 
+                # Early column dropping if memory optimization enabled
+                if self._column_tracker is not None:
+                    cols_to_drop = self._column_tracker.get_droppable_columns(
+                        i, set(current_dataset.columns)
+                    )
+                    if cols_to_drop:
+                        exec_logger.info(
+                            f"Dropping {len(cols_to_drop)} unused columns: "
+                            f"{sorted(cols_to_drop)}"
+                        )
+                        current_dataset = current_dataset.drop(columns=cols_to_drop)
+
             except Exception as exc:
                 # Capture metrics for failed execution
                 execution_time = time.perf_counter() - start_time
@@ -728,6 +764,48 @@ class Flow(BaseModel):
         if runtime_params is None:
             return {}
         return runtime_params.get(block.block_name, {})
+
+    def _cleanup_final_columns(
+        self,
+        dataset: pd.DataFrame,
+        original_columns: set[str],
+        flow_logger,
+    ) -> pd.DataFrame:
+        """Drop all columns except final_output_columns + original input columns.
+
+        Parameters
+        ----------
+        dataset : pd.DataFrame
+            Dataset to clean up
+        original_columns : set[str]
+            Original input columns (auto-preserved)
+        flow_logger
+            Logger for this execution
+
+        Returns
+        -------
+        pd.DataFrame
+            Dataset with only final output columns + original columns retained
+        """
+        current_cols = set(dataset.columns)
+        # Keep: final_output_columns + original input columns (auto-preserved)
+        cols_to_keep = set(self.metadata.final_output_columns) | original_columns
+
+        cols_to_drop = current_cols - cols_to_keep
+        missing_cols = set(self.metadata.final_output_columns) - current_cols
+
+        if missing_cols:
+            flow_logger.warning(
+                f"final_output_columns not found in dataset: {sorted(missing_cols)}"
+            )
+
+        if cols_to_drop:
+            flow_logger.info(
+                f"Dropping {len(cols_to_drop)} intermediate columns: {sorted(cols_to_drop)}"
+            )
+            dataset = dataset.drop(columns=list(cols_to_drop))
+
+        return dataset
 
     def set_model_config(
         self,

@@ -4,6 +4,7 @@
 # Standard
 from enum import Enum
 from typing import Optional
+import logging
 
 # Third Party
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -248,6 +249,14 @@ class FlowMetadata(BaseModel):
     dataset_requirements: Optional[DatasetRequirements] = Field(
         default=None, description="Requirements for input datasets"
     )
+    final_output_columns: Optional[list[str]] = Field(
+        default=None,
+        description="Columns to keep in final output. All others are dropped.",
+    )
+    optimize_memory: bool = Field(
+        default=False,
+        description="Drop columns early during execution when no longer needed",
+    )
 
     @field_validator("id")
     @classmethod
@@ -280,6 +289,19 @@ class FlowMetadata(BaseModel):
         """Validate and clean tags."""
         return [tag.strip().lower() for tag in v if tag.strip()]
 
+    @field_validator("final_output_columns")
+    @classmethod
+    def validate_final_output_columns(
+        cls, v: Optional[list[str]]
+    ) -> Optional[list[str]]:
+        """Validate and clean final output columns."""
+        if v is None:
+            return v
+        cleaned = [col.strip() for col in v if isinstance(col, str) and col.strip()]
+        if len(cleaned) != len(set(cleaned)):
+            raise ValueError("final_output_columns contains duplicate column names")
+        return cleaned
+
     @field_validator("recommended_models")
     @classmethod
     def validate_recommended_models(
@@ -299,6 +321,16 @@ class FlowMetadata(BaseModel):
         if not self.id and self.name:
             self.id = get_flow_identifier(self.name)
 
+        return self
+
+    @model_validator(mode="after")
+    def validate_memory_optimization(self) -> "FlowMetadata":
+        """Validate that optimize_memory has required configuration."""
+        if self.optimize_memory and not self.final_output_columns:
+            logging.getLogger(__name__).warning(
+                "optimize_memory=True requires final_output_columns to be set. "
+                "Early column dropping will be skipped."
+            )
         return self
 
     def get_best_model(
