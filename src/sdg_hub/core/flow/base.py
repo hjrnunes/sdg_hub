@@ -419,8 +419,8 @@ class Flow(BaseModel):
             Maximum number of concurrent requests across all blocks.
             Controls async request concurrency to prevent overwhelming servers.
         columns_to_keep : Optional[list[str]], optional
-            Columns to keep in the final output. Must include all minimal_output_columns
-            (if specified in metadata). If None, uses minimal_output_columns from metadata
+            Columns to keep in the final output. Must include all output_columns
+            (if specified in metadata). If None, uses output_columns from metadata
             or keeps all columns if not specified.
 
         Returns
@@ -436,7 +436,7 @@ class Flow(BaseModel):
         FlowValidationError
             If flow validation fails or if model configuration is required but not set.
         ValueError
-            If columns_to_keep doesn't include all minimal_output_columns.
+            If columns_to_keep doesn't include all output_columns.
         """
         # Convert to DataFrame if needed (backwards compatibility)
         dataset, was_dataset = self._convert_to_dataframe(dataset)
@@ -844,9 +844,9 @@ class Flow(BaseModel):
         Raises
         ------
         ValueError
-            If user_cols doesn't include all minimal_output_columns
+            If user_cols doesn't include all output_columns
         """
-        minimal = set(self.metadata.minimal_output_columns or [])
+        minimal = set(self.metadata.output_columns or [])
         all_possible = self.all_output_columns | original_columns
 
         if user_cols is None:
@@ -859,7 +859,7 @@ class Flow(BaseModel):
         missing_minimal = minimal - user_set
         if missing_minimal:
             raise ValueError(
-                f"columns_to_keep must include all minimal_output_columns. "
+                f"columns_to_keep must include all output_columns. "
                 f"Missing: {sorted(missing_minimal)}"
             )
 

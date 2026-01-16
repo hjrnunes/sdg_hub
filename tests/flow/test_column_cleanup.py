@@ -13,23 +13,23 @@ import pytest
 class TestFlowMetadataColumnCleanup:
     """Tests for FlowMetadata column cleanup fields."""
 
-    def test_minimal_output_columns_default_none(self):
-        """Test that minimal_output_columns defaults to None."""
+    def test_output_columns_default_none(self):
+        """Test that output_columns defaults to None."""
         metadata = FlowMetadata(name="test")
-        assert metadata.minimal_output_columns is None
+        assert metadata.output_columns is None
 
     def test_optimize_memory_default_false(self):
         """Test that optimize_memory defaults to False."""
         metadata = FlowMetadata(name="test")
         assert metadata.optimize_memory is False
 
-    def test_minimal_output_columns_set(self):
-        """Test setting minimal_output_columns."""
+    def test_output_columns_set(self):
+        """Test setting output_columns."""
         metadata = FlowMetadata(
             name="test",
-            minimal_output_columns=["col1", "col2"],
+            output_columns=["col1", "col2"],
         )
-        assert metadata.minimal_output_columns == ["col1", "col2"]
+        assert metadata.output_columns == ["col1", "col2"]
 
     def test_optimize_memory_set(self):
         """Test setting optimize_memory."""
@@ -39,30 +39,30 @@ class TestFlowMetadataColumnCleanup:
         )
         assert metadata.optimize_memory is True
 
-    def test_minimal_output_columns_strips_whitespace(self):
-        """Test that minimal_output_columns strips whitespace."""
+    def test_output_columns_strips_whitespace(self):
+        """Test that output_columns strips whitespace."""
         metadata = FlowMetadata(
             name="test",
-            minimal_output_columns=["  col1  ", "col2  "],
+            output_columns=["  col1  ", "col2  "],
         )
-        assert metadata.minimal_output_columns == ["col1", "col2"]
+        assert metadata.output_columns == ["col1", "col2"]
 
-    def test_minimal_output_columns_rejects_duplicates(self):
+    def test_output_columns_rejects_duplicates(self):
         """Test that duplicate column names are rejected."""
         with pytest.raises(ValueError, match="duplicate"):
             FlowMetadata(
                 name="test",
-                minimal_output_columns=["col1", "col1"],
+                output_columns=["col1", "col1"],
             )
 
-    def test_optimize_memory_without_minimal_output_columns_warns(self, caplog):
-        """Test warning when optimize_memory=True without minimal_output_columns."""
+    def test_optimize_memory_without_output_columns_warns(self, caplog):
+        """Test warning when optimize_memory=True without output_columns."""
         FlowMetadata(
             name="test",
             optimize_memory=True,
-            minimal_output_columns=None,
+            output_columns=None,
         )
-        assert "optimize_memory=True requires minimal_output_columns" in caplog.text
+        assert "optimize_memory=True requires output_columns" in caplog.text
 
 
 class TestColumnDependencyTracker:
@@ -180,8 +180,8 @@ class TestColumnDependencyTracker:
 class TestFlowColumnCleanup:
     """Tests for Flow column cleanup during execution."""
 
-    def test_flow_without_minimal_output_columns_keeps_all(self):
-        """Test that without minimal_output_columns, all columns are kept."""
+    def test_flow_without_output_columns_keeps_all(self):
+        """Test that without output_columns, all columns are kept."""
         flow = Flow(
             metadata=FlowMetadata(name="test"),
             blocks=[
@@ -200,12 +200,12 @@ class TestFlowColumnCleanup:
         assert "b" in result.columns
         assert "ab" in result.columns
 
-    def test_flow_with_minimal_output_columns_drops_intermediate(self):
+    def test_flow_with_output_columns_drops_intermediate(self):
         """Test that intermediate columns are dropped."""
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
-                minimal_output_columns=["final"],
+                output_columns=["final"],
             ),
             blocks=[
                 TextConcatBlock(
@@ -236,7 +236,7 @@ class TestFlowColumnCleanup:
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
-                minimal_output_columns=["final"],
+                output_columns=["final"],
                 optimize_memory=True,
             ),
             blocks=[
@@ -270,12 +270,12 @@ class TestFlowColumnCleanup:
         assert "temp1" not in result.columns
         assert "temp2" not in result.columns
 
-    def test_flow_missing_minimal_output_columns_warns(self, caplog):
-        """Test warning when minimal_output_columns specifies missing columns."""
+    def test_flow_missing_output_columns_warns(self, caplog):
+        """Test warning when output_columns specifies missing columns."""
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
-                minimal_output_columns=["nonexistent", "output"],
+                output_columns=["nonexistent", "output"],
             ),
             blocks=[
                 TextConcatBlock(
@@ -292,13 +292,13 @@ class TestFlowColumnCleanup:
         assert "columns_to_keep not found in dataset" in caplog.text
         assert "nonexistent" in caplog.text
 
-    def test_flow_optimize_memory_without_minimal_output_columns_no_effect(self):
-        """Test that optimize_memory without minimal_output_columns has no effect."""
+    def test_flow_optimize_memory_without_output_columns_no_effect(self):
+        """Test that optimize_memory without output_columns has no effect."""
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
                 optimize_memory=True,
-                minimal_output_columns=None,
+                output_columns=None,
             ),
             blocks=[
                 TextConcatBlock(
@@ -312,7 +312,7 @@ class TestFlowColumnCleanup:
         dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
         result = flow.generate(dataset)
 
-        # All columns kept since minimal_output_columns is None
+        # All columns kept since output_columns is None
         assert "a" in result.columns
         assert "b" in result.columns
         assert "ab" in result.columns
@@ -378,12 +378,12 @@ class TestFlowAllOutputColumns:
 class TestFlowColumnsToKeep:
     """Tests for columns_to_keep parameter in flow.generate()."""
 
-    def test_columns_to_keep_superset_of_minimal(self):
-        """Test that columns_to_keep can include more than minimal."""
+    def test_columns_to_keep_superset_of_output_columns(self):
+        """Test that columns_to_keep can include more than output_columns."""
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
-                minimal_output_columns=["final"],
+                output_columns=["final"],
             ),
             blocks=[
                 TextConcatBlock(
@@ -407,12 +407,12 @@ class TestFlowColumnsToKeep:
         assert "a" in result.columns  # original preserved
         assert "b" in result.columns  # original preserved
 
-    def test_columns_to_keep_missing_minimal_raises(self):
-        """Test that columns_to_keep must include all minimal columns."""
+    def test_columns_to_keep_missing_output_columns_raises(self):
+        """Test that columns_to_keep must include all output_columns."""
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
-                minimal_output_columns=["col1", "col2"],
+                output_columns=["col1", "col2"],
             ),
             blocks=[
                 DuplicateColumnsBlock(
@@ -423,7 +423,7 @@ class TestFlowColumnsToKeep:
         )
 
         dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
-        with pytest.raises(ValueError, match="must include all minimal_output_columns"):
+        with pytest.raises(ValueError, match="must include all output_columns"):
             flow.generate(dataset, columns_to_keep=["col1"])  # missing col2
 
     def test_columns_to_keep_with_unknown_columns_raises(self):
@@ -431,7 +431,7 @@ class TestFlowColumnsToKeep:
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
-                minimal_output_columns=["output"],
+                output_columns=["output"],
             ),
             blocks=[
                 TextConcatBlock(
@@ -445,28 +445,6 @@ class TestFlowColumnsToKeep:
         dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
         with pytest.raises(ValueError, match="columns not produced by flow"):
             flow.generate(dataset, columns_to_keep=["output", "nonexistent"])
-
-
-class TestFlowMetadataBackwardsCompat:
-    """Tests for backwards compatibility with output_columns."""
-
-    def test_output_columns_migrated_to_minimal_output_columns(self):
-        """Test that old output_columns field is migrated."""
-        # Simulate loading from YAML with old field name
-        metadata = FlowMetadata(
-            name="test",
-            output_columns=["col1", "col2"],  # old field name
-        )
-        assert metadata.minimal_output_columns == ["col1", "col2"]
-
-    def test_minimal_output_columns_takes_precedence(self):
-        """Test that minimal_output_columns takes precedence over output_columns."""
-        metadata = FlowMetadata(
-            name="test",
-            output_columns=["old1", "old2"],
-            minimal_output_columns=["new1", "new2"],
-        )
-        assert metadata.minimal_output_columns == ["new1", "new2"]
 
 
 class TestColumnDependencyTrackerEdgeCases:
