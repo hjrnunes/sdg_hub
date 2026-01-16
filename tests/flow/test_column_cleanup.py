@@ -5,7 +5,7 @@ from sdg_hub.core.blocks.transform.duplicate_columns import DuplicateColumnsBloc
 from sdg_hub.core.blocks.transform.text_concat import TextConcatBlock
 from sdg_hub.core.flow.base import Flow
 from sdg_hub.core.flow.column_tracker import ColumnDependencyTracker
-from sdg_hub.core.flow.metadata import FlowMetadata
+from sdg_hub.core.flow.metadata import DatasetRequirements, FlowMetadata
 import pandas as pd
 import pytest
 
@@ -462,3 +462,48 @@ class TestColumnDependencyTrackerEdgeCases:
         assert "temp" in droppable
         assert "input" not in droppable
         assert "output" not in droppable
+
+
+class TestFlowGetColumnSummary:
+    """Tests for Flow.get_column_summary() method."""
+
+    def test_get_column_summary_basic(self):
+        """Test get_column_summary with all categories populated."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["final"],
+                dataset_requirements=DatasetRequirements(
+                    required_columns=["a", "b"],
+                ),
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="step1", input_cols=["a", "b"], output_cols="intermediate"
+                ),
+                DuplicateColumnsBlock(
+                    block_name="step2", input_cols={"intermediate": "final"}
+                ),
+            ],
+        )
+
+        summary = flow.get_column_summary()
+        assert summary["input"] == ["a", "b"]
+        assert summary["intermediate"] == ["intermediate"]
+        assert summary["output"] == ["final"]
+
+    def test_get_column_summary_no_output_columns(self):
+        """When output_columns not set, all generated cols are intermediate."""
+        flow = Flow(
+            metadata=FlowMetadata(name="test"),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat", input_cols=["a", "b"], output_cols="ab"
+                ),
+            ],
+        )
+
+        summary = flow.get_column_summary()
+        assert summary["input"] == []
+        assert summary["intermediate"] == ["ab"]
+        assert summary["output"] == []

@@ -130,6 +130,37 @@ class Flow(BaseModel):
             output_cols.update(block_outputs)
         return output_cols
 
+    def get_column_summary(self) -> dict[str, list[str]]:
+        """Get a summary of all columns by category.
+
+        Returns
+        -------
+        dict[str, list[str]]
+            Dictionary with keys:
+            - "input": Required input columns (from dataset_requirements)
+            - "intermediate": Columns produced but dropped (not in output_columns)
+            - "output": Final output columns (from output_columns)
+        """
+        # Input columns from dataset requirements
+        input_cols: list[str] = []
+        if self.metadata.dataset_requirements:
+            input_cols = self.metadata.dataset_requirements.required_columns
+
+        # Final output columns from metadata
+        output_cols = self.metadata.output_columns or []
+
+        # All columns produced by blocks
+        all_generated = self.all_output_columns
+
+        # Intermediate = generated but not in output
+        intermediate_cols = sorted(all_generated - set(output_cols))
+
+        return {
+            "input": sorted(input_cols),
+            "intermediate": intermediate_cols,
+            "output": sorted(output_cols),
+        }
+
     @staticmethod
     def _extract_output_columns(
         output_cols: Union[str, list[str], dict[str, Any], None],
