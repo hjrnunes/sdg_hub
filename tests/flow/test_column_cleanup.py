@@ -480,7 +480,9 @@ class TestFlowGetColumnSummary:
             ),
             blocks=[
                 TextConcatBlock(
-                    block_name="step1", input_cols=["a", "b"], output_cols="intermediate"
+                    block_name="step1",
+                    input_cols=["a", "b"],
+                    output_cols="intermediate",
                 ),
                 DuplicateColumnsBlock(
                     block_name="step2", input_cols={"intermediate": "final"}

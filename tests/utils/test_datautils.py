@@ -334,9 +334,9 @@ def test_validate_no_duplicates_with_sets_and_frozensets_via_mock():
         result2 = make_hashable(test_frozenset)
 
         # They should be equal (both converted to frozenset)
-        assert (
-            result1 == result2
-        ), "Sets and frozensets should be converted to equivalent frozensets"
+        assert result1 == result2, (
+            "Sets and frozensets should be converted to equivalent frozensets"
+        )
 
     # Run the logic test
     test_make_hashable_logic()
