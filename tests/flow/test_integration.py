@@ -5,13 +5,13 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# First Party
-from sdg_hub import Flow, FlowMetadata, FlowRegistry
-
 # Third Party
 import pandas as pd
 import pytest
 import yaml
+
+# First Party
+from sdg_hub import Flow, FlowMetadata, FlowRegistry
 
 
 class TestFlowIntegration:

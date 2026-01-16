@@ -2,10 +2,11 @@
 """Tests for LLMResponseExtractorBlock."""
 
 # Third Party
-# First Party
-from sdg_hub.core.blocks.llm import LLMResponseExtractorBlock
 import pandas as pd
 import pytest
+
+# First Party
+from sdg_hub.core.blocks.llm import LLMResponseExtractorBlock
 
 
 class TestLLMResponseExtractorBlockInitialization:

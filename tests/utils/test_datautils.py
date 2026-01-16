@@ -1,6 +1,11 @@
 # Standard Library
 from unittest.mock import patch
 
+# Third Party
+import numpy as np
+import pandas as pd
+import pytest
+
 # First Party
 from sdg_hub.core.utils.datautils import (
     safe_concatenate_datasets,
@@ -8,11 +13,6 @@ from sdg_hub.core.utils.datautils import (
     validate_no_duplicates,
 )
 from sdg_hub.core.utils.error_handling import FlowValidationError
-
-# Third Party
-import numpy as np
-import pandas as pd
-import pytest
 
 
 def test_validate_no_duplicates_with_unique_data():

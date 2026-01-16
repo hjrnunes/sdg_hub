@@ -5,14 +5,14 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# First Party
-from sdg_hub import Flow
-from sdg_hub.core.flow.metadata import DatasetRequirements
-
 # Third Party
 import pandas as pd
 import pytest
 import yaml
+
+# First Party
+from sdg_hub import Flow
+from sdg_hub.core.flow.metadata import DatasetRequirements
 
 
 class TestDatasetRequirements:

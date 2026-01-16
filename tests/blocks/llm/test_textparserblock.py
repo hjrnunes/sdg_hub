@@ -1,12 +1,12 @@
 # Standard
 from unittest.mock import patch
 
-# First Party
-from sdg_hub.core.blocks.llm import TextParserBlock
-
 # Third Party
 import pandas as pd
 import pytest
+
+# First Party
+from sdg_hub.core.blocks.llm import TextParserBlock
 
 
 @pytest.fixture
